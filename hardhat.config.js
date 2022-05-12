@@ -15,14 +15,15 @@ module.exports = {
       '541390f6845da0b6cb1adc22610a243d079bcd9099adee61eb0963fa8980ba21']
     },
     maticMumbai: {
-      url: "https://matic-mumbai.chainstacklabs.com",//https://polygon-mumbai.g.alchemy.com/v2/"+ process.env.ALCHEMY_MUMBAI_API_KEY,
+      url: "https://polygon-mumbai.g.alchemy.com/v2/"+process.env.ALCHEMY_MUMBAI_API_KEY,
       accounts: [process.env.POLYGON_PRIVATE_KEY],
       gasPrice: 35000000000,
       saveDeployments: true,
     },
     goerli: {
       url: "https://goerli.infura.io/v3/"+ process.env.INFURA_GOERLI_API_KEY,
-      accounts: [process.env.POLYGON_PRIVATE_KEY]
+      accounts: [process.env.POLYGON_PRIVATE_KEY],
+      saveDeployments: true,
     }
   },
   etherscan: {

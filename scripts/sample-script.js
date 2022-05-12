@@ -7,14 +7,14 @@ const Web3 = require('web3');
 // install web3 plugin
 use(Web3ClientPlugin);
 
-const rootTokenAddress = "0x3ef35357f0b024070c5eab6ca1ba754461007b04";
+const rootTokenAddress = "0x13e943BD367041c79e8842D3cDB0fe2bc7ba46Fc";
 const childTokenAddress = "0x3Ef35357F0B024070C5eAb6cA1Ba754461007B04";
 
 async function main() {
   const [signer] = await ethers.getSigners();
   const posClient = new POSClient();
   const fromParent = Web3.eth.accounts.privateKeyToAccount(hardhatConfig.networks.goerli.accounts[0]);
-  const toParent = Web3.eth.accounts.privateKeyToAccount(hardhatConfig.networks.goerli.accounts[0]);
+  const toParent = Web3.eth.accounts.privateKeyToAccount(hardhatConfig.networks.maticMumbai.accounts[0]);
 
   await posClient.init({
     network: 'testnet',
@@ -35,20 +35,6 @@ async function main() {
 
   const erc20ChildToken = posClient.erc20(childTokenAddress);
   const erc20ParentToken = posClient.erc20(rootTokenAddress, true);
-
-  //Approve
-  {
-    // approve amount 10 on parent token
-    const approveResult = await erc20ParentToken.approve(10);
-
-    // get transaction hash
-    const txHash = await approveResult.getTransactionHash();
-    console.log("Approve hash: " + txHash);
-    // get transaction receipt
-    const txReceipt = await approveResult.getReceipt();
-
-    console.log("Approve receipt: " + txReceipt);
-  }
 
   // Deposit
   {
