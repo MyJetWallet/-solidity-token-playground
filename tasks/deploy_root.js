@@ -8,10 +8,10 @@ require("@nomiclabs/hardhat-web3");
 use(Web3ClientPlugin);
 
 // Task for getting all donater addresses
-// Example: npx hardhat deployroot --network goerli --amount 1000000000000000000000000
+// Example: npx hardhat deployRoot --network goerli --amount 1000000000000000000000000
 // npx hardhat verify --network goerli 0x13e943BD367041c79e8842D3cDB0fe2bc7ba46Fc "SimplToken" "SMPLT" 1000000000000000000000000 0xD8970629b60eDDE6766A4a8C74667307d7044eB2
 // https://goerli.etherscan.io/address/0x13e943BD367041c79e8842D3cDB0fe2bc7ba46Fc#code
-task('deployroot', 'deploy root erc20 token')
+task('deployRoot', 'deploy root erc20 token')
     .addParam('amount', 'Initial supply', '', types.string)
     .setAction(async ({amount}, { ethers }) => {
         const [signer] = await ethers.getSigners();

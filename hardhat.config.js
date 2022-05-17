@@ -1,14 +1,15 @@
 require('dotenv').config();
 require("@nomiclabs/hardhat-ethers");
 require("@nomiclabs/hardhat-etherscan");
-require('solidity-coverage')
-
+require('solidity-coverage');
+require("@nomiclabs/hardhat-waffle");
 // Tasks
 require('./tasks');
 
 module.exports = {
   defaultNetwork: "maticMumbai",
   networks: {
+    //Ganache mnemonic: anger song bitter enlist father calm butter cigar twelve nut kit system
     ganache: {
       url: "HTTP://127.0.0.1:7545",
       accounts: ['d878a21985558e7ecb7974b6b3c3add3c97eef6ca8c5ff81201e293075b1f961', 
@@ -20,23 +21,34 @@ module.exports = {
       gasPrice: 35000000000,
       saveDeployments: true,
     },
+    polygon: {
+      url: "https://polygon-mainnet.g.alchemy.com/v2/"+process.env.ALCHEMY_POLYGON_API_KEY,
+      accounts: [process.env.POLYGON_PRIVATE_KEY],
+      gasPrice: 35000000000,
+      saveDeployments: true,
+    },
     goerli: {
-      url: "https://goerli.infura.io/v3/"+ process.env.INFURA_GOERLI_API_KEY,
+      url: "https://goerli.infura.io/v3/"+ process.env.INFURA_API_KEY,
+      accounts: [process.env.POLYGON_PRIVATE_KEY],
+      saveDeployments: true,
+    },
+    mainnet: {
+      url: "https://mainnet.infura.io/v3/"+ process.env.INFURA_API_KEY,
       accounts: [process.env.POLYGON_PRIVATE_KEY],
       saveDeployments: true,
     }
   },
   etherscan: {
     apiKey: {
-      mainnet: "YOUR_ETHERSCAN_API_KEY",
-      goerli: process.env.GOERLISCAN_API_KEY,
+      mainnet: process.env.ETHERSCAN_API_KEY,
+      goerli: process.env.ETHERSCAN_API_KEY,
       // polygon
-      polygon: "YOUR_POLYGONSCAN_API_KEY",
+      polygon: process.env.POLYGONSCAN_API_KEY,
       polygonMumbai: process.env.POLYGONSCAN_API_KEY,
   }
   },
   solidity: {
-    version: "0.8.0",
+    version: "0.8.1",
     settings: {
       optimizer: {
         enabled: true,

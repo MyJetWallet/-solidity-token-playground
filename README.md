@@ -1,15 +1,40 @@
 # Basic Sample Hardhat Project
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, a sample script that deploys that contract, and an example of a task implementation, which simply lists the available accounts.
+ENV variables:
+
+```
+POLYGON_PRIVATE_KEY - private key for deployer on both networks
+INFURA_API_KEY - infura api key for both goerli and mainnet
+ALCHEMY_POLYGON_API_KEY - alchemy polygon api key
+ALCHEMY_MUMBAI_API_KEY - alchemy mumbai api key
+ETHERSCAN_API_KEY - etherscan api key
+POLYGONSCAN_API_KEY - polygon scan api key
+```
 
 Try running some of the following tasks:
 
 ```shell
-npx hardhat accounts
-npx hardhat compile
-npx hardhat clean
-npx hardhat test
-npx hardhat node
-node scripts/sample-script.js
-npx hardhat help
+npm install
+
+// Deploy child erc20 contract (maticMumbai)
+npx hardhat deployChild --network maticMumbai --child-manager {childManagerAddress}
+
+npx hardhat verify --network maticMumbai {contractAddress} "SimplToken" "SMPLT" {childManagerAddress}
+
+npx hardhat deployRoot --network goerli --amount 1000000000000000000000000
+
+npx hardhat verify --network goerli {contractAddress} "SimplToken" "SMPLT" 1000000000000000000000000 {deployerAddress}
+
+npx hardhat approve --amount 1000 --root-network goerli --child-network maticMumbai --root-token-address {rootTokenAddress} --child-token-address {childTokenAddress}
+
+npx hardhat deposit --amount 1000 --root-network goerli --child-network maticMumbai --root-token-address {rootTokenAddress} --child-token-address {childTokenAddress} --user-address {userAddress}
+
+npx hardhat withdraw --amount 50 --root-network goerli --child-network maticMumbai --root-token-address {rootTokenAddress} --child-token-address {childTokenAddress}
+
+npx hardhat withdrawExit --burn-tx-hash {withdrawTxHashOnPolygon} --root-network goerli --child-network maticMumbai --root-token-address {rootTokenAddress} --child-token-address {childTokenAddress}
+
 ```
+
+Examples: TODO
+
+endpoint to get last synced polygon block in ethereum
