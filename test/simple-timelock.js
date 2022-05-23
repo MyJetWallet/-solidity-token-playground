@@ -19,8 +19,11 @@ describe("Deploy token and timelock", function () {
   var SimpleTimelock;
   var signer;
   var receiver;
+  var bank;
   var ethVal;
   var token;
+  var onePercent;
+  const unlockTimeIntervalSec = 10;
 
   async function GetLastBlockTimeStamp() {
     var latestBlockNumber = await web3.eth.getBlockNumber();
@@ -29,35 +32,43 @@ describe("Deploy token and timelock", function () {
     return latestBlock.timestamp;
   }
 
+  async function GetReleaseTime() {
+    return await GetLastBlockTimeStamp() + unlockTimeIntervalSec;
+  }
+
+  async function DepositFullAmount(timelock) {
+    var encodedAmount = web3.eth.abi.encodeParameter('uint256', ethVal);
+
+    var txDeposit = await token.deposit(timelock.address, encodedAmount);
+    await txDeposit.wait();
+  }
+
   beforeEach(async function () {
-    [signer, receiver] = await ethers.getSigners();
+    [signer, receiver, bank] = await ethers.getSigners();
     SimplToken = await ethers.getContractFactory("ChildSimplToken");
     SimpleTimelock = await ethers.getContractFactory("SimpleTimelock");
     ethVal = BigNumber.from("100000000000000000000");
+    onePercent = ethVal.div(100);
 
     token = await SimplToken.deploy("ChildSimplToken", "SMPLT", signer.address);
     await token.deployed()
+
     var date = Math.floor(new Date().getTime() / 1000);
     await timeMachine.advanceBlockAndSetTime(date);
   });
 
   it("Should release only 1% of funds after one unlock interval ", async function () {
-    var releaseTime = await GetLastBlockTimeStamp() + 10;
-    const unlockTimeIntervalSec = 10;
-    const onePercent = 1000 //1%
-    const timelock = await SimpleTimelock.deploy(token.address, releaseTime, unlockTimeIntervalSec, onePercent);
+    var releaseTime = await GetReleaseTime();
+    const timelock = await SimpleTimelock.deploy(token.address, signer.address);
     await timelock.deployed();
 
-    var encodedAmount = web3.eth.abi.encodeParameter('uint256', ethVal);
+    await DepositFullAmount(timelock);
 
-    var txDeposit = await token.deposit(timelock.address, encodedAmount);
-    await txDeposit.wait();
-
-    var setBenTx = await timelock.setBeneficiary(receiver.address, ethVal);
+    var setBenTx = await timelock.setBeneficiary(receiver.address, ethVal, releaseTime, unlockTimeIntervalSec, onePercent);
 
     await setBenTx.wait();
 
-    var response = await timeMachine.advanceBlockAndSetTime(releaseTime + unlockTimeIntervalSec);
+    var response = await timeMachine.advanceBlockAndSetTime(releaseTime);
 
     var releaseTx = await timelock.connect(receiver).release();
 
@@ -71,22 +82,43 @@ describe("Deploy token and timelock", function () {
 
   });
 
-  it("Should release 50% of funds after timelock interval is 50", async function () {
-    var releaseTime = await GetLastBlockTimeStamp() + 10;
-    const unlockTimeIntervalSec = 5;
-    const timelock = await SimpleTimelock.deploy(token.address, releaseTime, unlockTimeIntervalSec, 1000); //1%
+  it("Should release only 2% of funds after two unlock intervals", async function () {
+    var releaseTime = await GetReleaseTime();
+    const timelock = await SimpleTimelock.deploy(token.address, signer.address);
     await timelock.deployed();
 
-    var encodedAmount = web3.eth.abi.encodeParameter('uint256', ethVal);
+    await DepositFullAmount(timelock);
 
-    var txDeposit = await token.deposit(timelock.address, encodedAmount);
-    await txDeposit.wait();
-
-    var setBenTx = await timelock.setBeneficiary(receiver.address, ethVal);
+    var setBenTx = await timelock.setBeneficiary(receiver.address, ethVal, releaseTime, unlockTimeIntervalSec, onePercent);
 
     await setBenTx.wait();
 
-    var response = await timeMachine.advanceBlockAndSetTime(releaseTime + 50 * unlockTimeIntervalSec);
+    var response = await timeMachine.advanceBlockAndSetTime(releaseTime + unlockTimeIntervalSec);
+
+    var releaseTx = await timelock.connect(receiver).release();
+
+    await releaseTx.wait();
+
+    const balanceOf = await token.balanceOf(receiver.address);
+
+    const expectedGain = ethVal.div(50);
+    
+    expect(balanceOf.eq(expectedGain)).to.equal(true);
+
+  });
+
+  it("Should release 50% of funds after timelock interval is 50", async function () {
+    var releaseTime = await GetReleaseTime();
+    const timelock = await SimpleTimelock.deploy(token.address, signer.address); //1%
+    await timelock.deployed();
+
+    await DepositFullAmount(timelock);
+
+    var setBenTx = await timelock.setBeneficiary(receiver.address, ethVal, releaseTime, unlockTimeIntervalSec, onePercent);
+
+    await setBenTx.wait();
+
+    var response = await timeMachine.advanceBlockAndSetTime(releaseTime + 49 * unlockTimeIntervalSec);
 
     var releaseTx = await timelock.connect(receiver).release();
 
@@ -100,21 +132,18 @@ describe("Deploy token and timelock", function () {
   });
 
   it("Should release 100% of funds after timelock interval is 100", async function () {
-    var releaseTime = await GetLastBlockTimeStamp() + 10;
-    const unlockTimeIntervalSec = 1;
-    const timelock = await SimpleTimelock.deploy(token.address, releaseTime, unlockTimeIntervalSec, 1000); //1%
+    var releaseTime = await GetReleaseTime();
+    
+    const timelock = await SimpleTimelock.deploy(token.address, signer.address); //1%
     await timelock.deployed();
 
-    var encodedAmount = web3.eth.abi.encodeParameter('uint256', ethVal);
+    await DepositFullAmount(timelock);
 
-    var txDeposit = await token.deposit(timelock.address, encodedAmount);
-    await txDeposit.wait();
-
-    var setBenTx = await timelock.setBeneficiary(receiver.address, ethVal);
+    var setBenTx = await timelock.setBeneficiary(receiver.address, ethVal, releaseTime, unlockTimeIntervalSec, onePercent);
 
     await setBenTx.wait();
 
-    var response = await timeMachine.advanceBlockAndSetTime(releaseTime + 102 * unlockTimeIntervalSec);
+    var response = await timeMachine.advanceBlockAndSetTime(releaseTime + 99 * unlockTimeIntervalSec);
 
     var releaseTx = await timelock.connect(receiver).release();
 
@@ -128,44 +157,78 @@ describe("Deploy token and timelock", function () {
 
   });
 
-  it("Should not release the same interval tokens twice!", async function () {
-    var releaseTime = await GetLastBlockTimeStamp() + 10;
-    const unlockTimeIntervalSec = 10;
-    const timelock = await SimpleTimelock.deploy(token.address, releaseTime, unlockTimeIntervalSec, 1000); //1%
+  it("Should release 100% of funds after timelock interval is 100 for both beneficiaries", async function () {
+    var releaseTime = await GetReleaseTime();
+    
+    const timelock = await SimpleTimelock.deploy(token.address, signer.address); //1%
     await timelock.deployed();
 
-    var encodedAmount = web3.eth.abi.encodeParameter('uint256', ethVal);
+    await DepositFullAmount(timelock);
 
-    var txDeposit = await token.deposit(timelock.address, encodedAmount);
-    await txDeposit.wait();
+    var half = ethVal.div(2);
 
-    var setBenTx = await timelock.setBeneficiary(receiver.address, ethVal);
+    var setBenTx = await timelock.setBeneficiary(receiver.address, half, releaseTime, unlockTimeIntervalSec, onePercent);
 
     await setBenTx.wait();
 
-    var response = await timeMachine.advanceBlockAndSetTime(releaseTime + 10 * unlockTimeIntervalSec);
+    var setBenTx = await timelock.setBeneficiary(bank.address, half, releaseTime, unlockTimeIntervalSec, onePercent);
+
+    await setBenTx.wait();
+
+    await timeMachine.advanceBlockAndSetTime(releaseTime + 99 * unlockTimeIntervalSec);
 
     var releaseTx = await timelock.connect(receiver).release();
 
     await releaseTx.wait();
 
-    await expect(
-      timelock.connect(receiver).release()
-    ).to.be.revertedWith("SimpleTimelock: unlockTimes should be greater than 0");
+    var releaseTx = await timelock.connect(bank).release();
+
+    await releaseTx.wait();
+
+    var balanceOf = await token.balanceOf(receiver.address);
+  
+    const expectedGain = half;
+    
+    expect(balanceOf.eq(expectedGain)).to.equal(true);
+
+    var balanceOf = await token.balanceOf(bank.address);
+    
+    expect(balanceOf.eq(expectedGain)).to.equal(true);
+
   });
 
-  it("Should not release tokens when ther are no available!", async function () {
-    var releaseTime = await GetLastBlockTimeStamp() + 10;
-    const unlockTimeIntervalSec = 10;
-    const timelock = await SimpleTimelock.deploy(token.address, releaseTime, unlockTimeIntervalSec, 1000); //1%
+  it("Should not release the same interval tokens twice!", async function () {
+    var releaseTime = await GetReleaseTime();
+    const timelock = await SimpleTimelock.deploy(token.address, signer.address); //1%
     await timelock.deployed();
 
-    var encodedAmount = web3.eth.abi.encodeParameter('uint256', ethVal);
+    await DepositFullAmount(timelock);
 
-    var txDeposit = await token.deposit(timelock.address, encodedAmount);
-    await txDeposit.wait();
+    var setBenTx = await timelock.setBeneficiary(receiver.address, ethVal, releaseTime, unlockTimeIntervalSec, onePercent);
 
-    var setBenTx = await timelock.setBeneficiary(receiver.address, ethVal);
+    await setBenTx.wait();
+
+    var response = await timeMachine.advanceBlockAndSetTime(releaseTime);
+
+    var releaseTx = await timelock.connect(receiver).release();
+
+    await releaseTx.wait();
+
+    var response = await timeMachine.advanceBlockAndSetTime(await GetLastBlockTimeStamp() + 1);
+
+    await expect(
+      timelock.connect(receiver).release()
+    ).to.be.revertedWith("SimpleTimelock: unlockedAmount should be greater than 0");
+  });
+
+  it("Should not release tokens when there are no available!", async function () {
+    var releaseTime = await GetReleaseTime();
+    const timelock = await SimpleTimelock.deploy(token.address, signer.address); //1%
+    await timelock.deployed();
+
+    await DepositFullAmount(timelock);
+
+    var setBenTx = await timelock.setBeneficiary(receiver.address, ethVal, releaseTime, unlockTimeIntervalSec, onePercent);
 
     await setBenTx.wait();
 
@@ -179,38 +242,80 @@ describe("Deploy token and timelock", function () {
 
     await expect(
       timelock.connect(receiver).release()
-    ).to.be.revertedWith("SimpleTimelock: no tokens to release");
+    ).to.be.revertedWith("SimpleTimelock: BeneficiaryRecord amount should be grater than 0");
   });
 
   it("Should not set beneficiary if no tokens are available!", async function () {
-    var releaseTime = await GetLastBlockTimeStamp() + 10;
-    const unlockTimeIntervalSec = 10;
-    const timelock = await SimpleTimelock.deploy(token.address, releaseTime, unlockTimeIntervalSec, 1000); //1%
+    var releaseTime = await GetReleaseTime();
+    const timelock = await SimpleTimelock.deploy(token.address, signer.address); //1%
     await timelock.deployed();
 
     await expect(
-      timelock.setBeneficiary(receiver.address, ethVal)
+      timelock.setBeneficiary(receiver.address, ethVal, releaseTime, unlockTimeIntervalSec, onePercent)
     ).to.be.revertedWith("SimpleTimelock: you can't lock more tokens than you have.");
   });
 
   it("Should not register same address twice as beneficiary", async function () {
-    var releaseTime = await GetLastBlockTimeStamp() + 10;
-    const unlockTimeIntervalSec = 1;
-    const timelock = await SimpleTimelock.deploy(token.address, releaseTime, unlockTimeIntervalSec, 1000); //1%
+    var releaseTime = await GetReleaseTime();
+    const timelock = await SimpleTimelock.deploy(token.address, signer.address); //1%
     await timelock.deployed();
 
-    var encodedAmount = web3.eth.abi.encodeParameter('uint256', ethVal);
+    await DepositFullAmount(timelock);
 
-    var txDeposit = await token.deposit(timelock.address, encodedAmount);
-    await txDeposit.wait();
-
-    var setBenTx = await timelock.setBeneficiary(receiver.address, ethVal);
+    var setBenTx = await timelock.setBeneficiary(receiver.address, ethVal, releaseTime, unlockTimeIntervalSec, onePercent);
 
     await setBenTx.wait();
 
     await expect(
-      timelock.setBeneficiary(receiver.address, ethVal)
+      timelock.setBeneficiary(receiver.address, ethVal, releaseTime, unlockTimeIntervalSec, onePercent)
     ).to.be.revertedWith("SimpleTimelock: you can't set the same address more than once!");
+  });
+
+  it("Should not set beneficiary if sender is not the owner", async function () {
+    var releaseTime = await GetReleaseTime();
+    const unlockTimeIntervalSec = 1;
+    const timelock = await SimpleTimelock.deploy(token.address, signer.address); //1%
+    await timelock.deployed();
+
+    await DepositFullAmount(timelock);
+
+    await expect(
+      timelock.connect(receiver).setBeneficiary(receiver.address, ethVal, releaseTime, unlockTimeIntervalSec, onePercent)
+    ).to.be.revertedWith("SimpleTimelock: only owner can set beneficiary!");
+  });
+
+  it("Should receive 0 as expectedRelease", async function () {
+    var releaseTime = await GetReleaseTime();
+    const unlockTimeIntervalSec = 1;
+    const timelock = await SimpleTimelock.deploy(token.address, signer.address); //1%
+    await timelock.deployed();
+
+    await DepositFullAmount(timelock);
+
+    var setBenTx = await timelock.setBeneficiary(receiver.address, ethVal, releaseTime, unlockTimeIntervalSec, onePercent);
+
+    await setBenTx.wait();
+
+    var expectedRelease = await timelock.expectedRelease(receiver.address);
+    expect(expectedRelease.eq(BigNumber.from(0))).to.equal(true);
+  });
+
+  it("Should receive ethVal as expectedRelease", async function () {
+    var releaseTime = await GetReleaseTime();
+    const unlockTimeIntervalSec = 1;
+    const timelock = await SimpleTimelock.deploy(token.address, signer.address); //1%
+    await timelock.deployed();
+
+    await DepositFullAmount(timelock);
+
+    var setBenTx = await timelock.setBeneficiary(receiver.address, ethVal, releaseTime, unlockTimeIntervalSec, onePercent);
+
+    await setBenTx.wait();
+
+    var response = await timeMachine.advanceBlockAndSetTime(releaseTime + 99 * unlockTimeIntervalSec);
+
+    var expectedRelease = await timelock.expectedRelease(receiver.address);
+    expect(expectedRelease.eq(ethVal)).to.equal(true);
   });
 });
 

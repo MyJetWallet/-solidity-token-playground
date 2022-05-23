@@ -23,49 +23,28 @@ contract SimpleTimelock {
     struct BeneficiaryRecord {
         uint256 lastUnlockTime;
         uint256 tokenAmount;
+        uint256 releaseTime;
+        uint256 unlockInterval;
+        uint256 unlockAmount;
     }
 
     // ERC20 basic token contract being held
     IERC20 private immutable _token;
 
-    // timestamp when token release is enabled
-    uint256 private immutable _releaseTime;
-    
-    // timestamp interval when token percentage is claimable
-    uint256 private immutable _unlockInterval;
-
-
     // unlock percentage for
-    uint256 private immutable _unlockPercentage;
-
-    uint256 private _maxPercentage = 100_000; // means 100.000%
+    address private immutable _owner;
 
     uint256 private _lockedTokens; //
+
     /**
      * @dev Deploys a timelock instance that is able to hold the token specified, and will only release it to
      * `beneficiary_` when {release} is invoked after `releaseTime_`. The release time is specified as a Unix timestamp
      * (in seconds).
      */
-    constructor(
-        IERC20 token_,
-        uint256 releaseTime_,
-        uint256 unlockInterval_,
-        uint256 unlockPercentage_
-    ) {
-        require(
-            releaseTime_ > block.timestamp,
-            "SimpleTimelock: release time is before current time."
-        );
-        require(
-            unlockPercentage_ > 0 && unlockPercentage_ <= _maxPercentage,
-            "SimpleTimelock should be in range."
-        );
-
+    constructor(IERC20 token_, address owner_) {
         _token = token_;
-        _releaseTime = releaseTime_;
-        _unlockInterval = unlockInterval_;
-        _unlockPercentage = unlockPercentage_;
         _lockedTokens = 0;
+        _owner = owner_;
     }
 
     /**
@@ -73,27 +52,6 @@ contract SimpleTimelock {
      */
     function token() public view virtual returns (IERC20) {
         return _token;
-    }
-
-    /**
-     * @dev Returns the time when the tokens are released in seconds since Unix epoch (i.e. Unix timestamp).
-     */
-    function releaseTime() public view virtual returns (uint256) {
-        return _releaseTime;
-    }
-
-    /**
-     * @dev Returns
-     */
-    function unlockInterval() public view virtual returns (uint256) {
-        return _unlockInterval;
-    }
-
-    /**
-     * @dev Returns
-     */
-    function unlockPercentage() public view virtual returns (uint256) {
-        return _unlockPercentage;
     }
 
     /**
@@ -106,28 +64,81 @@ contract SimpleTimelock {
     /**
      * @dev Returns
      */
-    function beneficiaryRecord(address beneficiaryAddress_) public view virtual returns (BeneficiaryRecord memory) {
+    function beneficiaryRecord(address beneficiaryAddress_)
+        public
+        view
+        virtual
+        returns (BeneficiaryRecord memory)
+    {
         BeneficiaryRecord memory result = _beneficiaries[beneficiaryAddress_];
         return result;
     }
-    
 
-    function setBeneficiary(address beneficiaryAddress_, uint256 tokenAmount_) public virtual {
+    /**
+     * @dev Returns
+     */
+    function expectedRelease(address beneficiaryAddress_)
+        public
+        view
+        virtual
+        returns (uint256)
+    {
+        BeneficiaryRecord memory record = _beneficiaries[beneficiaryAddress_];
+
+        if (record.lastUnlockTime == 0) {
+            return 0;
+        }
+
+        return calculateTokensToUnlock(block.timestamp, record);
+    }
+
+    function setBeneficiary(
+        address beneficiaryAddress_,
+        uint256 tokenAmount_,
+        uint256 releaseTime_,
+        uint256 unlockInterval_,
+        uint256 unlockAmount_
+    ) public virtual {
+        require(
+            msg.sender == _owner,
+            "SimpleTimelock: only owner can set beneficiary!"
+        );
         BeneficiaryRecord memory record = _beneficiaries[beneficiaryAddress_];
         require(
             record.lastUnlockTime == 0,
             "SimpleTimelock: you can't set the same address more than once!"
         );
 
+        require(
+            releaseTime_ > block.timestamp,
+            "SimpleTimelock: release time is before current time."
+        );
+
+        require(
+            releaseTime_ > unlockInterval_,
+            "SimpleTimelock: It should be releaseTime_ > unlockInterval_."
+        );
+
+        require(
+            unlockAmount_ <= tokenAmount_,
+            "SimpleTimelock: It should be unlockAmount_ <= tokenAmount_."
+        );
+
         uint256 amount = token().balanceOf(address(this));
 
         _lockedTokens += tokenAmount_;
 
-        require(_lockedTokens <= amount, "SimpleTimelock: you can't lock more tokens than you have." );
-        console.log("Beneficiary set '%s' to '%s' ('%s' with release time)", beneficiaryAddress_, tokenAmount_, _releaseTime);
+        require(
+            _lockedTokens <= amount,
+            "SimpleTimelock: you can't lock more tokens than you have."
+        );
+        
         _beneficiaries[beneficiaryAddress_] = BeneficiaryRecord(
-            _releaseTime,
-            tokenAmount_
+            releaseTime_ - unlockInterval_,
+            tokenAmount_,
+            releaseTime_,
+            unlockInterval_,
+            unlockAmount_
         );
     }
 
@@ -136,14 +147,6 @@ contract SimpleTimelock {
      * time.
      */
     function release() public virtual {
-        require(
-            block.timestamp >= releaseTime(),
-            "SimpleTimelock: current time is before release time"
-        );
-
-        uint256 amount = token().balanceOf(address(this));
-        require(amount > 0, "SimpleTimelock: no tokens to release");
-
         BeneficiaryRecord memory record = _beneficiaries[msg.sender];
 
         require(
@@ -155,38 +158,60 @@ contract SimpleTimelock {
             "SimpleTimelock: BeneficiaryRecord amount should be grater than 0."
         );
 
+        require(
+            block.timestamp >= record.releaseTime,
+            "SimpleTimelock: current time is before release time"
+        );
+
+        uint256 amount = token().balanceOf(address(this));
+        require(amount > 0, "SimpleTimelock: no tokens to release");
+
         uint256 curTime = block.timestamp;
         require(
             curTime > record.lastUnlockTime,
             "SimpleTimelock: cur time should be greater than lastUnlockTime"
         );
 
-        uint256 unlockTimes = (curTime - record.lastUnlockTime).div(
-            _unlockInterval
+        uint256 unlockedAmount = calculateTokensToUnlock(curTime, record);
+
+        require(
+            unlockedAmount > 0,
+            "SimpleTimelock: unlockedAmount should be greater than 0"
         );
 
-        require(unlockTimes > 0, "SimpleTimelock: unlockTimes should be greater than 0");
+        token().safeTransfer(msg.sender, unlockedAmount);
 
-        uint256 unlockedAmount = record.tokenAmount
-            .mul(_unlockPercentage)
-            .mul(unlockTimes)
-            .div(_maxPercentage);
+        record.lastUnlockTime = curTime;
+        record.tokenAmount -= unlockedAmount;
+        _lockedTokens -= unlockedAmount;
 
-        require(unlockedAmount > 0, "SimpleTimelock: unlockedAmount should be greater than 0");
+        _beneficiaries[msg.sender] = record;
+    }
+
+    function calculateTokensToUnlock(
+        uint256 curTime,
+        BeneficiaryRecord memory record
+    ) private pure returns (uint256) {
+        if (curTime <= record.lastUnlockTime) {
+            return 0;
+        }
+
+        uint256 diff = curTime - record.lastUnlockTime;
+
+        uint256 unlockTimes = diff.div(record.unlockInterval);
+
+        if (unlockTimes == 0) {
+            return 0;
+        }
+
+        uint256 unlockedAmount = record
+            .unlockAmount
+            .mul(unlockTimes);
 
         if (unlockedAmount > record.tokenAmount) {
             unlockedAmount = record.tokenAmount;
         }
 
-        token().safeTransfer(msg.sender, unlockedAmount);
-
-        console.log("curTime '%s'", curTime);
-        console.log("unlockTimes '%s'", unlockTimes);
-        console.log("unlockedAmount '%s'", unlockedAmount);
-
-        record.lastUnlockTime = curTime;
-        record.tokenAmount -= unlockedAmount;
-
-        _beneficiaries[msg.sender] = record;
+        return unlockedAmount;
     }
 }

@@ -13,7 +13,8 @@ module.exports = {
     ganache: {
       url: "HTTP://127.0.0.1:7545",
       accounts: ['d878a21985558e7ecb7974b6b3c3add3c97eef6ca8c5ff81201e293075b1f961', 
-      '541390f6845da0b6cb1adc22610a243d079bcd9099adee61eb0963fa8980ba21']
+      '541390f6845da0b6cb1adc22610a243d079bcd9099adee61eb0963fa8980ba21',
+      '9e0f04c984538f7e65695516658c127e8618187e85b53c32c55c19c3bbdbb167']
     },
     maticMumbai: {
       url: "https://polygon-mumbai.g.alchemy.com/v2/"+process.env.ALCHEMY_MUMBAI_API_KEY,

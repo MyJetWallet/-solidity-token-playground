@@ -1,6 +1,7 @@
 const Web3 = require('web3')
 
-const web3 = new Web3(new Web3.providers.HttpProvider("https://mainnet.infura.io/v3/"));
+//const web3 = new Web3(new Web3.providers.HttpProvider("https://mainnet.infura.io/v3/"));
+const web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:7545"));
 
 async function createAccount(){
     
@@ -9,4 +10,12 @@ async function createAccount(){
     console.log('Private Key: ' + wallet.privateKey)
 }
 
-createAccount();
+async function GetLastBlockTimeStamp() {
+    var latestBlockNumber = await web3.eth.getBlockNumber();
+    var latestBlock = await web3.eth.getBlock(latestBlockNumber);
+
+    console.log(latestBlock.timestamp);
+  }
+
+GetLastBlockTimeStamp();
+//createAccount();

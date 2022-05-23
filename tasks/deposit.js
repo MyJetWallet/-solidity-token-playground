@@ -9,7 +9,7 @@ const { BigNumber } = require('ethers');
 // install web3 plugin
 use(Web3ClientPlugin);
 
-// Example: npx hardhat deposit --amount 1000 --root-network goerli --child-network maticMumbai --root-token-address 0x13e943BD367041c79e8842D3cDB0fe2bc7ba46Fc --child-token-address 0xa0f11783591ee3114a19cb0f4ce759ed9886c4c4 --user-address 0xD8970629b60eDDE6766A4a8C74667307d7044eB2
+// Example: npx hardhat deposit --amount 1000000000000000000 --root-network goerli --child-network maticMumbai --root-token-address 0x13e943BD367041c79e8842D3cDB0fe2bc7ba46Fc --child-token-address 0xa0f11783591ee3114a19cb0f4ce759ed9886c4c4 --user-address 0x986ceCBfA11A556b40F5c9c8a914b5747E912F25
 task('deposit', 'deposit')
     .addParam('amount', 'amount', '', types.string)
     .addParam('rootNetwork', 'Root network', '', types.string)
