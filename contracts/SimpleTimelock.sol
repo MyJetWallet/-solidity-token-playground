@@ -31,15 +31,12 @@ contract SimpleTimelock {
     // ERC20 basic token contract being held
     IERC20 private immutable _token;
 
-    // unlock percentage for
-    address private immutable _owner;
+    address private _owner;
 
     uint256 private _lockedTokens; //
 
     /**
-     * @dev Deploys a timelock instance that is able to hold the token specified, and will only release it to
-     * `beneficiary_` when {release} is invoked after `releaseTime_`. The release time is specified as a Unix timestamp
-     * (in seconds).
+     * @dev 
      */
     constructor(IERC20 token_, address owner_) {
         _token = token_;
@@ -141,6 +138,14 @@ contract SimpleTimelock {
             unlockAmount_
         );
     }
+
+    function setNewOwner(
+        address newOwner_
+    ) public virtual {
+        require(msg.sender == _owner, "SimpleTimelock: only owner can set new owner.");
+        _owner = newOwner_;
+    }
+    
 
     /**
      * @dev Transfers tokens held by the timelock to the beneficiary. Will only succeed if invoked after the release

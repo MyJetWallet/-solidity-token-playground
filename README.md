@@ -37,4 +37,7 @@ npx hardhat withdrawExit --burn-tx-hash {withdrawTxHashOnPolygon} --root-network
 
 Examples: TODO
 
+https://goerli.etherscan.io/token/0x13e943bd367041c79e8842d3cdb0fe2bc7ba46fc
+https://mumbai.polygonscan.com/address/0xa0f11783591ee3114a19cb0f4ce759ed9886c4c4
+
 endpoint to get last synced polygon block in ethereum

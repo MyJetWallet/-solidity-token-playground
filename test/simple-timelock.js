@@ -273,7 +273,6 @@ describe("Deploy token and timelock", function () {
 
   it("Should not set beneficiary if sender is not the owner", async function () {
     var releaseTime = await GetReleaseTime();
-    const unlockTimeIntervalSec = 1;
     const timelock = await SimpleTimelock.deploy(token.address, signer.address); //1%
     await timelock.deployed();
 
@@ -286,7 +285,6 @@ describe("Deploy token and timelock", function () {
 
   it("Should receive 0 as expectedRelease", async function () {
     var releaseTime = await GetReleaseTime();
-    const unlockTimeIntervalSec = 1;
     const timelock = await SimpleTimelock.deploy(token.address, signer.address); //1%
     await timelock.deployed();
 
@@ -302,7 +300,6 @@ describe("Deploy token and timelock", function () {
 
   it("Should receive ethVal as expectedRelease", async function () {
     var releaseTime = await GetReleaseTime();
-    const unlockTimeIntervalSec = 1;
     const timelock = await SimpleTimelock.deploy(token.address, signer.address); //1%
     await timelock.deployed();
 
@@ -316,6 +313,36 @@ describe("Deploy token and timelock", function () {
 
     var expectedRelease = await timelock.expectedRelease(receiver.address);
     expect(expectedRelease.eq(ethVal)).to.equal(true);
+  });
+
+  it("Should set new owner, and new owner can set new beneficiaries", async function () {
+    var releaseTime = await GetReleaseTime();
+    const timelock = await SimpleTimelock.deploy(token.address, signer.address); //1%
+    await timelock.deployed();
+
+    await DepositFullAmount(timelock);
+
+    var set = await timelock.setNewOwner(receiver.address);
+
+    await set.wait();
+
+    var setBenTx = await timelock.connect(receiver).setBeneficiary(receiver.address, ethVal, releaseTime, unlockTimeIntervalSec, onePercent);
+
+    await setBenTx.wait();
+
+    var response = await timeMachine.advanceBlockAndSetTime(releaseTime + 99 * unlockTimeIntervalSec);
+
+    var expectedRelease = await timelock.expectedRelease(receiver.address);
+    expect(expectedRelease.eq(ethVal)).to.equal(true);
+  });
+
+  it("Should not set new owner from not owner's address", async function () {
+    const timelock = await SimpleTimelock.deploy(token.address, signer.address); //1%
+    await timelock.deployed();
+
+    await expect(
+      timelock.connect(receiver).setNewOwner(receiver.address)
+    ).to.be.revertedWith("SimpleTimelock: only owner can set new owner.");
   });
 });
 
