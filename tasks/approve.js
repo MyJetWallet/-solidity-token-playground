@@ -9,7 +9,7 @@ const { BigNumber } = require('ethers');
 // install web3 plugin
 use(Web3ClientPlugin);
 
-// Example: npx hardhat approve --amount 1000000000000000000 --root-network goerli --child-network maticMumbai --root-token-address 0x13e943BD367041c79e8842D3cDB0fe2bc7ba46Fc --child-token-address 0xa0f11783591ee3114a19cb0f4ce759ed9886c4c4
+// Example: npx hardhat approve --amount 1000000000000000000000 --root-network goerli --child-network maticMumbai --root-token-address 0x13e943BD367041c79e8842D3cDB0fe2bc7ba46Fc --child-token-address 0xa0f11783591ee3114a19cb0f4ce759ed9886c4c4
 task('approve', 'approve')
     .addParam('amount', 'amount', '', types.string)
     .addParam('rootNetwork', 'Root network', '', types.string)
@@ -72,8 +72,6 @@ task('approve', 'approve')
 
         // approve amount 10 on parent token
         const approveResult = await erc20ParentToken.approve(amount);
-
-        console.log(approveResult);
 
         // get transaction hash
         const txHash = await approveResult.getTransactionHash();
